@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 public class Context {
+    private final String separator = ", ";
+    private final String divider = ":";
 
     private Map<String, String> getJsonSerializationMap(Object object) throws IllegalAccessException{
         Map<String, String> jsonStrings = new HashMap<>();
@@ -52,31 +54,48 @@ public class Context {
         String elements = getJsonSerializationMap(object).entrySet()
                 .stream()
                 .filter(entry -> entry.getValue() != null)
-                .map(entry -> "\""+entry.getKey() +"\""+":"+"\""+ entry.getValue()+"\"")
-                .collect(Collectors.joining(", "));
+                .map(entry -> "\""+entry.getKey() +"\""+divider+"\""+ entry.getValue()+"\"")
+                .collect(Collectors.joining(separator));
         return "{"+elements+"}";
     }
 
-    public Object fromJson(String jsonString, Class<?> aClass) throws InstantiationException, IllegalAccessException, NoSuchFieldException {
-        Object result = aClass.newInstance();
-        String[] jsonElements = jsonString.substring(1, jsonString.length()-2).split(", ");
-        String name;
-        String value;
-        for (String jsonElement: jsonElements) {
-            name = jsonElement.substring(1, jsonElement.indexOf(":")-1);
-            value = jsonElement.substring(jsonElement.indexOf(":")+1, jsonElement.length()-1);
-            Field field = aClass.getField(name);
-            field.setAccessible(true);
-            if(field.getClass().equals(LocalDate.class)) {
-                if (field.isAnnotationPresent(CustomDateFormat.class)){
 
+    private Map<String, String> getJsonSerialisationMap(String jsonString){
+        Map<String, String> jsonMap = new HashMap<>();
+
+        for (String item: jsonString.substring(1, jsonString.length()-1).split(separator)) {
+            jsonMap.put(item.substring(1, item.indexOf(divider)-1), item.substring(item.indexOf(divider)+2, item.length()-1));
+        }
+        return jsonMap;
+    }
+
+    public Object getObjectByJsonString(String jsonString, Class<?> aClass) throws IllegalAccessException, InstantiationException {
+        Map<String, String> jsonMap = getJsonSerialisationMap(jsonString);
+
+        Object object = aClass.newInstance();
+
+        String fieldName;
+        for (Field aField: aClass.getDeclaredFields()) {
+            aField.setAccessible(true);
+            fieldName = aField.getName();
+            if (aField.isAnnotationPresent(JsonValue.class)) {
+                fieldName = aField.getAnnotation(JsonValue.class).name();
+            }
+
+            if(aField.getType().equals(LocalDate.class) ) {
+                if (aField.isAnnotationPresent(CustomDateFormat.class)){
+                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern(aField.getAnnotation(CustomDateFormat.class).format());
+                     aField.set(object, LocalDate.parse(jsonMap.get(fieldName), formatter));
+                }
+                else{
+                    aField.set(object, LocalDate.parse(jsonMap.get(fieldName)));
                 }
             }
-            else
-            {
-                field.set(result, value);
+            else {
+                aField.set(object, jsonMap.get(fieldName));
             }
         }
-        return null;
+
+        return object;
     }
 }

@@ -14,6 +14,20 @@ public class Human {
     private LocalDate birthDate;
     private LocalDate marryDate;
 
+    public Human() {
+    }
+
+    @Override
+    public String toString() {
+        return "Human{" +
+                "firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
+                ", hobby='" + hobby + '\'' +
+                ", birthDate=" + birthDate +
+                ", marryDate=" + marryDate +
+                '}';
+    }
+
     public Human(String firstName, String lastName, String hobby, LocalDate birthDate, LocalDate marryDate) {
         this.firstName = firstName;
         this.lastName = null;
